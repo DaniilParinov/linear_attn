@@ -1,2 +1,19 @@
-# linear_attn
-Bart base with linear attention inside encoder tested on mnli and qnli datasets
+# BART base with linear attention in encoder VS BART base with vanila attention
+
+
+
+1) The idea for this approach came from a paper titled "Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention". The essence of the idea is to    replace the softmax operation, which is typically used to calculate attention weights in transformers, with a simple feature-map-based product. This allows for     linear-time computation of attention weights regardless of sequence length.
+However, the problem with this approach is that the vectors for softmax function should ideally be mapped in an infinite space, and using simple mapping functions   like $elu(x)+1$ only provides a rough approximation of softmax attention. As a result, the performance of this approach is slightly worse compared to using softmax.
+
+2) Assuming that $K$, $Q$, and $V$ have the same dimensions of $[S \times h]$, where $S$ is the sequence length and $h$ is the head dimension, we can ignore the $B$ and $H$ dimensions since the calculations are performed independently for each batch and head. Therefore, in both cases, we are dealing with matrices of dimensions $[S \times h]$ (assuming that the mapping is performed in a space with the same dimensions). In softmax attention, first of all, we need to calculate $QK^\intercal$. This matrix multiplication gives us $S \times S \times h$ multiplications and $S \times S \times (h-1)$ additions, so in result, we get $O(S^2 h)$ complexity. On the next step, we should take the softmax of this matrix multiplication and multiply it by $V$, which gives us additional $S \times h \times S$ multiplications and $S \times h \times (S-1)$ additions. However, these additional operations do not change the overall complexity of $O(S^2 h)$. Therefore, the overall complexity for softmax attention is $O(S^2 h)$. For linear attentions hardest operation is sum by j of $K_j V_j^\intercal$ from $j = 1$ to $S$ this operation consists from $h \times h$ multiplications and $S \times h \times h$ additions, in result we get  $O(Sh^2)$ complexity. As result we will get matrix with dimensions $h \times h$ which we need to multiply on Q from left side, this operation also gives us $O(Sh^2)$ complexity, so total calculation complexity is $O(Sh^2)$.
+As for the memory complexity for vanila attention we need to store $BH$ attention coeffient matrices with dimensions $S \times S$ and for linear attention we need to store the same amount of matrices but with dimensions $h \times h$ plut S-1 cammulative terms so in resut  $S \times h ^2$ (it is my naive realisation, authors of the article made their own realisation of backprop with cuda drivers and C code and reached $S \times h$ memory consumption.)
+
+3) Seems that i already explained
+
+4) I changed attentions mechanism only in encoder because i did not make any masking mechanism in my code, so it will break decoder because tokens will attend to the future which is not good. For decoders model without masking is also not good, but not that critical, in that case we will attend to masking tokens MLM or some noising tokens in case of bart(denoising models) but in case of pretrained model it is not a big problem.
+
+5) If h < S we will get benefits in speed, with good implementations(like on the authors github) we also will get benefits in memory. The problem is with masking(as I understand with linear implementations we can make only triangular masking) and another big problem is that this solution is just rough aproximation of softmax, so end results in terms of quality will be worse. Also it is impossible to use attention coefficients for better understanding of model behaviour.
+
+![Comparison on the big sequence length](https://github.com/DaniilParinov/linear_attn/blob/main/benchmark_small_seq_len.png)
+
+![Comparison on the small sequence length](https://github.com/DaniilParinov/linear_attn/blob/main/benchmark_small_seq_len.png)
