@@ -15,6 +15,7 @@ As for the memory complexity for vanila attention we need to store $BH$ attentio
 
 4) I changed attentions mechanism only in encoder because i did not make any masking mechanism in my code, so it will break decoder because tokens will attend to the future which is not good(not a problem for QNLI and MNLI tasks, just extra caucious). For decoders model without masking is also not good, but not that critical, in that case we will attend to masking tokens MLM or some noising tokens in case of bart(denoising models) but in case of pretrained model it is not a big problem.
 
+
 5) If h < S we will get benefits in speed, with good implementations(like on the authors github) we also will get benefits in memory. The problem is with masking(as I understand with linear implementations we can make only triangular masking) and another big problem is that this solution is just rough aproximation of softmax, so end results in terms of quality will be worse. Also it is impossible to use attention coefficients for better understanding of model behaviour.
 
 ### Big sequence length benchmark, Batch size = 32, emd_dim = 768, heads_qty = 12 (same as in BART)
@@ -49,6 +50,8 @@ So by simple words is classification problem, in case of QNLI with 2 labels {0: 
 | Train(SPS)    |        534      |      538       |        420.8     |        300    |
 
 As we can see results in terms of speed almost the same, the only outlier is Linear QNLI but i think it was caused by some problems with CPU during running, unfortunately i did not have enough time to run proper profilling
+Also it is worth of notice that maximum seq len in bart is limited by 1024 tokes, which is not long enough to see the real difference between linear and vanila attentions
 
 Results of accuracy as expected slightly lower for model with linear attentions, also i could add that my results slihtly undertrained because for bart base was reached performarnce on 2-2.5 points better than in my results.
+
 
